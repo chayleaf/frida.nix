@@ -1,0 +1,25 @@
+diff --git a/src/compiler/generate-agent.py b/src/compiler/generate-agent.py
+index 0fe33502..ce963038 100755
+--- a/src/compiler/generate-agent.py
++++ b/src/compiler/generate-agent.py
+@@ -32,7 +32,7 @@ def generate_agent(input_dir, output_dir, host_os_family, host_cpu_mode, v8_mksn
+         shutil.copyfile(input_dir / name, output_dir / name)
+ 
+     try:
+-        subprocess.run([npm, "install"], capture_output=True, cwd=output_dir, check=True)
++        shutil.copytree("@node_modules@", output_dir / "node_modules", symlinks=True)
+         #subprocess.run([npm, "link", "/Users/oleavr/src/frida-compile"], capture_output=True, cwd=output_dir, check=True)
+     except Exception as e:
+         message = "\n".join([
+@@ -47,9 +47,8 @@ def generate_agent(input_dir, output_dir, host_os_family, host_cpu_mode, v8_mksn
+         ])
+         raise EnvironmentError(message)
+ 
+-    with urllib.request.urlopen("https://raw.githubusercontent.com/DefinitelyTyped/DefinitelyTyped/86804f3dc1469f041fcec0f945e66eefbd94baeb/types/frida-gum/index.d.ts") as response, \
+-            (output_dir / "node_modules" / "@types" / "frida-gum" / "index.d.ts").open("wb") as frida_gum_types:
+-        shutil.copyfileobj(response, frida_gum_types)
++    (output_dir / "node_modules" / "@types" / "frida-gum" / "index.d.ts").chmod(644)
++    shutil.copy2("@index_d_ts@", output_dir / "node_modules" / "@types" / "frida-gum" / "index.d.ts")
+ 
+     components = ["typescript", "agent-core"]
+     for component in components:
