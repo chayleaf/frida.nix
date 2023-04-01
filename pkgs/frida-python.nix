@@ -5,11 +5,12 @@
 , srcs
 , versions
 , frida-core
-, glib
-, json-glib
 , meson
 , ninja
 , pkg-config
+
+# vendored but works without vendoring
+, json-glib
 , ... }:
 
 python3Packages.buildPythonPackage {
@@ -20,7 +21,7 @@ python3Packages.buildPythonPackage {
   nativeBuildInputs = [ meson ninja pkg-config ];
   mesonFlags = [ "--default-library=static" ];
   propagatedBuildInputs = [ python3Packages.typing-extensions ];
-  buildInputs = [ frida-core frida-core.glib frida-core.json-glib ];
+  buildInputs = [ frida-core frida-core.glib json-glib ];
   postInstall = ''
     # This is typically set by pipInstallHook/eggInstallHook,
     # so we have to do so manually when using meson

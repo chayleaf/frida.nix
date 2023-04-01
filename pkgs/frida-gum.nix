@@ -20,63 +20,38 @@
 
 , enableStatic ? true
 , dontCombineDeps ? false
+
+# vendored but works without vendoring
+, libelf
+, lzma
+, sqlite
+, pcre2
+, libpsl
+, zlib
+, json-glib
+, libunwind
 , ... }:
 
 let
   commonFlags = lib.optionals enableStatic ["--default-library=static"];
   propagate = enableStatic;
-  dontCombineDeps' = dontCombineDeps || (!enableStatic);
-  buildInputs = x: if propagate then { propagatedBuildInputs = x; buildInputs = x; } else { buildInputs = x; };
-  build = attrs@{ pname, ... }: if overrides?${pname} then overrides.${pname} else stdenv.mkDerivation ({ version = versions.${pname}; src = srcs.${pname}; } // attrs);
-  frida-elfutils = build ({
-    pname = "elfutils";
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags;
-  } // (buildInputs [ frida-zlib ]));
-  frida-xz = build {
-    pname = "xz";
-    preConfigure = ''
-      sed -i "s/st_mtimensec/st_mtim.tv_nsec/g" src/xz/file_io.c
-      sed -i "s/st_atimensec/st_atim.tv_nsec/g" src/xz/file_io.c
-    '';
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags ++ [
-      "-Dunaligned_access=${if stdenv.targetPlatform.isx86_64 || stdenv.targetPlatform.isx86 || (stdenv.targetPlatform.isPower && !stdenv.targetPlatform.isLittleEndian) then "enabled" else "disabled"}"
-    
-      "-Dcli=disabled" # seemingly this flag is unused, but doing this for good measure anyway
-    ];
-  };
-  frida-sqlite = build {
-    pname = "sqlite";
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags;
-  };
-  frida-pcre2 = build {
-    pname = "pcre2";
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags ++ [ "-Dgrep=false" "-Dtest=false" ];
-  };
-  # selinux
-  # -Dregex=disabled
-  frida-libpsl = build {
-    pname = "libpsl";
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags ++ [ "-Druntime=no" "-Dbuiltin=false" "-Dtests=false" ];
-  };
-  frida-zlib = build {
-    pname = "zlib";
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags;
-  };
-  frida-glib = build ({
+  build = attrs@{ pname, mesonFlags ? [], nativeBuildInputs ? [], buildInputs ? [], propagatedBuildInputs ? [], forceBuildInputs ? false, ... }:
+    if overrides?${pname} then overrides.${pname} else stdenv.mkDerivation ({
+      version = versions.${pname};
+      src = srcs.${pname};
+    } // attrs // {
+      mesonFlags = commonFlags ++ mesonFlags;
+      nativeBuildInputs = [ meson ninja ] ++ nativeBuildInputs;
+    } // (if propagate && !forceBuildInputs then { propagatedBuildInputs = buildInputs ++ propagatedBuildInputs; buildInputs = []; } else {}));
+  frida-glib = build {
     pname = "glib";
     preConfigure = ''
       patchShebangs --host tools
       sed -i "s%/usr/bin/env python3%$(which python3)%g" tools/*.py
       sed -i "s%.*Werror=unused-result.*%%g" meson.build
     '';
-    nativeBuildInputs = [ meson ninja pkg-config which python3 ];
-    mesonFlags = commonFlags ++ [
+    nativeBuildInputs = [ pkg-config which python3 ];
+    mesonFlags = [
       "-Dprintf=internal"
       "-Dcocoa=disabled"
       "-Dselinux=disabled"
@@ -91,11 +66,11 @@ let
       "-Diconv=libc" # might have to be external on darwin, don't have a mac to test
       "-Dlibelf=disabled"
     ];
-  } // (buildInputs [ frida-pcre2 frida-libffi frida-zlib ]));
+    buildInputs = [ pcre2 frida-libffi zlib ];
+  };
   frida-capstone = build {
     pname = "capstone";
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags ++ [
+    mesonFlags = [
       "-Dprofile=full"
       "-Dcli=disabled"
       "-Darchs=${
@@ -109,31 +84,13 @@ let
       "-Dx86_att_disable=true"
     ];
   };
-  frida-json-glib = build ({
-    pname = "json-glib";
-    nativeBuildInputs = [ meson ninja pkg-config /*gettext*/ glib ];
-    mesonFlags = commonFlags ++ [ "-Dintrospection=disabled" "-Dgtk_doc=disabled" "-Dtests=false" "-Dnls=disabled" ];
-  } // (buildInputs [ frida-glib ]));
   frida-libffi = build {
     pname = "libffi";
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags ++ [ "-Dtests=false" "-Dexe_static_tramp=false" ];
+    mesonFlags = [ "-Dtests=false" "-Dexe_static_tramp=false" ];
   };
-  frida-libunwind = build ({
-    pname = "libunwind";
-    nativeBuildInputs = [ meson ninja pkg-config ];
-    mesonFlags = commonFlags ++ [
-      "-Dgeneric_library=disabled" "-Dcoredump_library=disabled" "-Dptrace_library=disabled" "-Dsetjmp_library=disabled" "-Dmsabi_support=false" "-Dminidebuginfo=enabled" "-Dzlibdebuginfo=enabled"
-      # implicit options
-      "-Dunwind_debug=disabled"
-      "-Dcxx_exceptions=disabled"
-      "-Ddebug_frame=${if stdenv.targetPlatform.isAarch32 || stdenv.targetPlatform.isAarch64 then "enabled" else "disabled"}"
-    ];
-  } // (buildInputs [ frida-xz frida-zlib ]));
   frida-nghttp2 = build {
     pname = "nghttp2";
-    nativeBuildInputs = [ meson ninja python3 ];
-    mesonFlags = commonFlags;
+    nativeBuildInputs = [ python3 ];
   };
   frida-brotli = build {
     pname = "brotli";
@@ -144,17 +101,15 @@ let
       }} source/meson.build
       ls -la source
     '';
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags;
   };
-  frida-libsoup = build ({
+  frida-libsoup = build {
     pname = "libsoup";
-    nativeBuildInputs = [ meson ninja pkg-config which python3 glib ];
+    nativeBuildInputs = [ pkg-config which python3 glib ];
     preConfigure = ''
       patchShebangs --host libsoup
       sed -i "s%/usr/bin/env python3%$(which python3)%g" libsoup/*.py
     '';
-    mesonFlags = commonFlags ++ [
+    mesonFlags = [
       "-Dgssapi=disabled"
       "-Dntlm=disabled"
       "-Dbrotli=disabled"
@@ -170,20 +125,20 @@ let
       "-Dfuzzing=disabled"
       "-Dautobahn=disabled"
     ];
-  } // (buildInputs [ frida-glib frida-nghttp2 frida-sqlite frida-libpsl frida-brotli ]));
-  frida-libdwarf = build ({
+    buildInputs = [ frida-glib frida-nghttp2 sqlite libpsl frida-brotli ];
+  };
+  frida-libdwarf = build {
     pname = "libdwarf";
-    nativeBuildInputs = [ meson ninja python3 which pkg-config ];
+    nativeBuildInputs = [ python3 which pkg-config ];
     preConfigure = ''
       patchShebangs --host scripts
       sed -i "s%/usr/bin/env python3%$(which python3)%g" scripts/*.py
     '';
-    mesonFlags = commonFlags;
-  } // (buildInputs [ frida-elfutils ]));
+    buildInputs = [ libelf ];
+  };
   frida-quickjs = build {
     pname = "quickjs";
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags ++ [ "-Dlibc=false" "-Dbignum=true" "-Datomics=disabled" "-Dstack_check=disabled" ];
+    mesonFlags = [ "-Dlibc=false" "-Dbignum=true" "-Datomics=disabled" "-Dstack_check=disabled" ];
   };
   frida-v8 = (callPackage ./v8.nix { }).overrideAttrs (old: {
     nativeBuildInputs = [ meson ninja pkg-config ];
@@ -191,7 +146,12 @@ let
     env.NIX_CFLAGS_COMPILE = "-O2";
     src = srcs.v8;
     mesonFlags = commonFlags ++ [
-      "-Ddebug=false" "-Dembedder_string=-frida" "-Dpointer_compression=disabled" "-Dsnapshot_compression=disabled" "-Dshared_ro_heap=disabled" "-Dcppgc_caged_heap=disabled"
+      "-Ddebug=false"
+      "-Dembedder_string=-frida"
+      "-Dpointer_compression=disabled"
+      "-Dsnapshot_compression=disabled"
+      "-Dshared_ro_heap=disabled"
+      "-Dcppgc_caged_heap=disabled"
       # implicit flags
       "-Dadvanced_bigint_algorithms=disabled"
       "-Dcppgc_young_generation=disabled"
@@ -206,16 +166,15 @@ let
   });
   frida-tinycc = build {
     pname = "tinycc";
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags;
   };
-  deps = [ frida-glib frida-capstone frida-libffi frida-xz frida-libunwind frida-elfutils frida-libdwarf ]
-    ++ (lib.optionals enableJsBindings [ frida-quickjs frida-v8 frida-json-glib frida-tinycc frida-sqlite frida-libsoup ]);
+  deps = [ frida-glib frida-capstone frida-libffi lzma libunwind libelf frida-libdwarf ]
+    ++ (lib.optionals enableJsBindings [ frida-quickjs frida-v8 json-glib frida-tinycc sqlite frida-libsoup ]);
 in build (
-  (if dontCombineDeps || propagate then {
+  (if dontCombineDeps && enableStatic then {
     propagatedBuildInputs = deps;
   } else {
     buildInputs = deps;
+    forceBuildInputs = true;
   })
 // {
   pname = "frida-gum";
@@ -232,16 +191,15 @@ in build (
     cp -r ${runtime}/lib/node_modules/gumjs-runtime/node_modules bindings/gumjs/node_modules
   '';
   # some binary from glib is required for whatever reason
-  nativeBuildInputs = [ meson pkg-config ninja glib ]
+  nativeBuildInputs = [ pkg-config glib ]
     ++ (lib.optionals enableJsBindings [ python3 which ]);
   passthru = {
     glib = frida-glib;
-    json-glib = frida-json-glib;
     capstone = frida-capstone;
     libsoup = frida-libsoup;
     brotli = frida-brotli;
   };
-  mesonFlags = commonFlags ++ [
+  mesonFlags = [
     "-Dgumjs=${if enableJsBindings then "enabled" else "disabled"}"
     "-Dallocator=internal"
     "-Djailbreak=disabled" # usually only enabled on macos,ios. dont have a mac so cant test
@@ -259,7 +217,7 @@ in build (
           (x: if x?propagatedBuildInputs then getAllPropagatedBuildInputs x.propagatedBuildInputs ++ [x] else [x])
           inputs);
     allPropagatedBuildInputs = lib.unique (map builtins.toString (getAllPropagatedBuildInputs deps));
-  in if dontCombineDeps' then "" else ''
+  in if dontCombineDeps || !enableStatic then "" else ''
     pushd "$(mktemp -d)"
     ar_inputs=()
     ${builtins.concatStringsSep "\n" (map (dep:

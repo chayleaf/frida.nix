@@ -5,8 +5,8 @@ updating it, but you're free to send prs).
 
 ## warning
 
-vendoring is used by the authors, so this will take up a lot of disk
-space! (relatively speaking)
+vendoring is used extensively by frida devs, so this will take up a lot
+of disk space! (relatively speaking)
 
 ## license
 
@@ -22,13 +22,19 @@ space! (relatively speaking)
 - q: why???
 - a: i couldn't find another way to make it link all the symbols
   properly. you're welcome to help (overriding linker flags could be the
-  answer).
+  answer)
 - q: so i can't use it in my own c programs because of potential symbol
   conflicts?
 - a: you can because the symbols aren't exported from the .so (well at
-  least i hope so). worst case you can `dlopen` it.
-- q: why do you use so much of frida's vendored deps? isn't it possible
-  to build frida using only a part of those vendored deps?
-- a: i faced plenty of issues during making this and wanted to make sure
-  they weren't caused by me not using vendored deps.
+  least i hope so). worst case you can `dlopen` it
+- q: why not dynamic?
+- a: there are dynamic builds, it's just that frida-python doesn't see
+  the path to the .so (probably possible to patch) so i statically
+  linked it instead
+- q: will you upstream this to nixpkgs?
+- a: this is 0bsd so feel free to do it! i don't want to deal with this
+  vendored mess
+- q: some of frida's deps are basically the same as upstream code, why
+  did you keep them vendored?
+- a: for whatever reason they don't work without static linking
 

@@ -20,13 +20,22 @@
 , flex
 , bison
 , enableStatic ? true
+
+# vendored but works without vendoring
+, json-glib
 , ... }:
 
 let 
   commonFlags = lib.optional enableStatic ["--default-library=static"];
   propagate = enableStatic;
-  buildInputs = x: if propagate then { propagatedBuildInputs = x; buildInputs = x; } else { buildInputs = x; };
-  build = attrs@{ pname, ... }: if overrides?${pname} then overrides.${pname} else stdenv.mkDerivation ({ version = versions.${pname}; src = srcs.${pname}; } // attrs);
+  build = attrs@{ pname, mesonFlags ? [], nativeBuildInputs ? [], buildInputs ? [], propagatedBuildInputs ? [], forceMesonFlags ? false, ... }:
+    if overrides?${pname} then overrides.${pname} else stdenv.mkDerivation ({
+      version = versions.${pname};
+      src = srcs.${pname};
+    } // (builtins.removeAttrs attrs ["forceMesonFlags"]) // {
+      mesonFlags = if forceMesonFlags then mesonFlags else commonFlags ++ mesonFlags;
+      nativeBuildInputs = [ meson ninja ] ++ nativeBuildInputs;
+    } // (if propagate then { propagatedBuildInputs = buildInputs ++ propagatedBuildInputs; buildInputs = []; } else {}));
   frida-vala = vala.overrideAttrs (old: {
     outputs = [ "out" ];
     version = versions.vala;
@@ -41,41 +50,43 @@ let
   });
   frida-usrsctp = build {
     pname = "usrsctp";
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags ++ [ "-Dsctp_inet=false" "-Dsctp_inet6=false" "-Dsctp_build_programs=false" ];
+    mesonFlags = [ "-Dsctp_inet=false" "-Dsctp_inet6=false" "-Dsctp_build_programs=false" ];
   };
-  frida-libgee = build ({
+  frida-libgee = build {
     pname = "libgee";
     env = {
       LD_LIBRARY_PATH = "${frida-vala}/lib/vala-0.58";
     };
-    nativeBuildInputs = [ meson ninja pkg-config frida-vala which /*vala*/ ]; # why?
-    mesonFlags = commonFlags ++ [ "-Ddisable-internal-asserts=true" "-Ddisable-introspection=true" ];
-  } // (buildInputs [ frida-gumjs.glib ]));
-  frida-libnice = build ({
+    nativeBuildInputs = [ pkg-config frida-vala which ];
+    mesonFlags = [ "-Ddisable-internal-asserts=true" "-Ddisable-introspection=true" ];
+    buildInputs = [ frida-gumjs.glib ];
+  };
+  frida-libnice = build {
     pname = "libnice";
-    nativeBuildInputs = [ meson ninja pkg-config glib ];
-    mesonFlags = commonFlags ++ [ "-Dgupnp=disabled" "-Dgstreamer=disabled" "-Dcrypto-library=openssl" "-Dexamples=disabled" "-Dtests=disabled" "-Dintrospection=disabled" ];
-  } // (buildInputs [ frida-gumjs.glib frida-openssl ]));
+    nativeBuildInputs = [ pkg-config glib ];
+    mesonFlags = [ "-Dgupnp=disabled" "-Dgstreamer=disabled" "-Dcrypto-library=openssl" "-Dexamples=disabled" "-Dtests=disabled" "-Dintrospection=disabled" ];
+    buildInputs = [ frida-gumjs.glib frida-openssl ];
+  };
   frida-openssl = build {
     pname = "openssl";
-    nativeBuildInputs = [ meson ninja ];
-    mesonFlags = commonFlags ++ [ "-Dcli=disabled" "-Dasm=disabled" ];
+    mesonFlags = [ "-Dcli=disabled" "-Dasm=disabled" ];
   };
-  gioopenssl = build ({
+  gioopenssl = build {
     pname = "glib-networking";
     strictDeps = true;
+    forceMesonFlags = true;
     mesonFlags = [
       # this must always be static
       "--default-library=static"
       "-Dopenssl=enabled" "-Dgnutls=disabled" "-Dlibproxy=disabled" "-Dgnome_proxy=disabled" "-Dtests=false"
     ];
-    nativeBuildInputs = [ meson ninja pkg-config ];
-  } // (buildInputs [
-    frida-gumjs.glib
-    frida-openssl
-  ]));
-  self = build ({
+    nativeBuildInputs = [ pkg-config ];
+    buildInputs = [
+      frida-gumjs.glib
+      frida-openssl
+    ];
+  };
+  self = build {
     env = {
       LD_LIBRARY_PATH = "${frida-vala}/lib/vala-0.58";
     };
@@ -100,7 +111,7 @@ let
         };
       })
     ];
-    mesonFlags = commonFlags ++ [
+    mesonFlags = [
       # normally it's only enabled if the host can run target arch's binaries
       # but this is set for more determinism
       "-Dcompiler_snapshot=enabled"
@@ -109,7 +120,7 @@ let
       "-Dcompiler_snapshot=enabled"
       "-Dtests=false"
     ];
-    nativeBuildInputs = [ meson frida-vala pkg-config ninja which python3 nodejs-18_x bash ];
+    nativeBuildInputs = [ frida-vala pkg-config which python3 nodejs-18_x bash ];
     postInstall = let
       getAllPropagatedBuildInputs = inputs:
         lib.flatten
@@ -142,7 +153,8 @@ let
     '';
     dontStrip = true;
     passthru = {
-      inherit (frida-gumjs) glib json-glib;
+      inherit (frida-gumjs) glib;
     };
-  } // (buildInputs [ frida-gumjs.glib frida-libgee frida-gumjs.json-glib frida-gumjs.libsoup frida-gumjs frida-gumjs.capstone frida-gumjs.brotli gioopenssl frida-openssl frida-libnice frida-usrsctp ]));
+    buildInputs = [ frida-gumjs.glib frida-libgee json-glib frida-gumjs.libsoup frida-gumjs frida-gumjs.capstone frida-gumjs.brotli gioopenssl frida-openssl frida-libnice frida-usrsctp ];
+  };
 in self

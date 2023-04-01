@@ -45,56 +45,6 @@
             sha256 = "sha256-SEgyyaoJ7fy934lmHTjQ9phF5Z22M4SzcqMOpNofMD4=";
           };
         };
-        elfutils = {
-          src = {
-            rev = "1284bbc128473aea220337685985d465607fbac8";
-            sha256 = "sha256-MPxF9SlnnPiMozb5F7mNgrYFgw0RDHM4KYEuHp5bNPo=";
-          };
-          version = "0.186";
-          # override = pkgs.libelf;
-        };
-        xz = {
-          src = {
-            rev = "e70f5800ab5001c9509d374dbf3e7e6b866c43fe";
-            sha256 = "sha256-ARaBLVAfwtl+Lexy8Ju1MmMPp+/43GnwD6mmNLvTy7k=";
-          };
-          version = "5.2.7";
-          # override = pkgs.lzma;
-        };
-        sqlite = {
-          src = {
-            rev = "87e0535610825f01a033948ba24bbe82db108470";
-            sha256 = "sha256-upBT13noDhd/vjO/8nhAExHEI4yCQLYZ9iLG3krYfek=";
-          };
-          version = "3.39.4";
-          # override = pkgs.sqlite;
-        };
-        pcre2 = {
-          src = {
-            rev = "b47486922fdc3486499b310dc9cf903449700474";
-            sha256 = "sha256-+bpMIm6S5f9L171aThuMyh7dYdZI1sDqekF0L2QdwmE=";
-          };
-          version = "10.41";
-          # override = pkgs.pcre2;
-        };
-        libpsl = {
-          src = {
-            rev = "579d32b7daf5a0ab1d1fef2d7e15066f52d8d026";
-            sha256 = "sha256-u9aof1rM+kEnXyOKi12v17cq73C/DJ9FQCTje6hEE9w=";
-            # needed for list/public_suffix_list.dat
-            fetchSubmodules = true;
-          };
-          version = "0.21.1";
-          # override = pkgs.libpsl;
-        };
-        zlib = {
-          src = {
-            rev = "a912d314d0812518d4bbd715a981e6c9484b550d";
-            sha256 = "sha256-YHXlH+2qGgEJCjm7O4p6UZqQcktvoIKeSwFO4v+J5NA=";
-          };
-          version = "1.2.13";
-          # override = pkgs.zlib;
-        };
         glib = {
           src = {
             rev = "805e42d63aa17f58b90a57c71f4b1896f154a535";
@@ -102,6 +52,7 @@
             fetchSubmodules = true;
           };
           version = "2.75.0";
+          # reason for vendoring: too many frida-specific features
           # override = pkgs.glib;
         };
         capstone = {
@@ -110,15 +61,8 @@
             sha256 = "sha256-KhzGRQzx5g9g/RddYtB/xwjTM4mn1sNJCCaJgT7cu/A=";
           };
           version = "5.0.0";
+          # reason for vendoring: capstone 5 not in nixpkgs; it probably has frida-specific features too
           # override = pkgs.capstone;
-        };
-        json-glib = {
-          src = {
-            rev = "fd29bf6dda9dcf051d2d98838e3086566bf91411";
-            sha256 = "sha256-aVJ9rWfkN0MZ+lelO4tfLCgn3RGF1txcsDK072DnuLk=";
-          };
-          version = "1.7.1";
-          # override = pkgs.json-glib;
         };
         libffi = {
           src = {
@@ -126,15 +70,8 @@
             sha256 = "sha256-BrJidiomPlJ/o/aGPMtnjIvOR0s6uD+C919+Y81Qvgk=";
           };
           version = "3.4.4";
+          # reason for vendoring: it has frida-specific features
           # override = pkgs.libffi;
-        };
-        libunwind = {
-          src = {
-            rev = "ccd3a38597a8397a3382e4e58fdabb26a6f0be13";
-            sha256 = "sha256-Kx5pg6oZKiPQezCqaswzJ7ZHLhHh2fhzuXY1WRf536E=";
-          };
-          version = "1.6-rc1";
-          # override = pkgs.libunwind;
         };
         nghttp2 = {
           src = {
@@ -142,6 +79,7 @@
             sha256 = "sha256-BNTp0cRvSRQxQ52b64eE+dtJn9gv06dk7LUFA1Kcfds=";
           };
           version = "1.51.0";
+          # reason for vendoring: symbol not found at runtime if linked to .so
           # override = pkgs.nghttp2;
         };
         brotli = {
@@ -150,6 +88,7 @@
             sha256 = "sha256-Qg1KZ7rA+N3OcaJXG/S+DACprFxNnTBWRD2lCAP3NFU=";
           };
           version = "1.0.9";
+          # reason for vendoring: symbol not found at runtime if linked to .so
           # override = pkgs.brotli;
         };
         libsoup = {
@@ -158,6 +97,7 @@
             sha256 = "sha256-Bet0zdXHplgbgyGeCQ6wx+eOQs70QE3kBoT66acZrgY=";
           };
           version = "3.3.0";
+          # reason for vendoring: symbol not found at runtime if linked to .so
           # override = pkgs.libsoup_3;
         };
         libdwarf = {
@@ -166,6 +106,7 @@
             sha256 = "sha256-Hl4QCUuHxqEt23yeA8nsITzYfIRNA/RxaNp32Bi/Tlg=";
           };
           version = "20191022";
+          # reason for vendoring: this version is very old but has some security patches
           # override = pkgs.libdwarf;
         };
         quickjs = {
@@ -174,6 +115,7 @@
             sha256 = "sha256-sHAqeZgcDDPeJxefDFpea8/9KinNp8j0uvZJMp2Y954=";
           };
           version = "2021-03-27-frida";
+          # reason for vendoring: too many frida-specific features
           # override = pkgs.quickjs;
         };
         # dont forget to update v8's deps too
@@ -183,6 +125,7 @@
             sha256 = "sha256-Ust8RNhuqOUtHzb8bGrlvcjp2M0rfEP2MwS8NwsZJKE=";
           };
           version = "10.9.42";
+          # reason for vendoring: not in nixpkgs
           # override = pkgs.v8;
         };
         tinycc = {
@@ -191,6 +134,7 @@
             sha256 = "sha256-BoTzGr/4z8h7/EqUP9N1Xtg7CCtqT/uKVX8P/lzmDHg=";
           };
           version = "0.9.27-frida";
+          # reason for vendoring: frida-specific features
           # override = pkgs.tinycc;
         };
         vala = {
@@ -199,6 +143,7 @@
             sha256 = "sha256-czzWYcOo6qkvUNldDBWC2/1ugcaRwD2AnGGdq1ksLAE=";
           };
           version = "0.58.0-frida";
+          # reason for vendoring: frida-specific features
           # override = pkgs.vala;
         };
         usrsctp = {
@@ -207,6 +152,7 @@
             sha256 = "sha256-qaAzO6sM/UxcvCUVrz+wbSR/bjATbqkJjc8U3zjSTdQ=";
           };
           version = "0.9.5.0";
+          # reason for vendoring: frida-specific features
           # override = pkgs.usrsctp;
         };
         libgee = {
@@ -215,6 +161,7 @@
             sha256 = "sha256-c5TzCtgi8wE3B7IhQAwbJ3IXsD2D9SELcoo4tgzPhbk=";
           };
           version = "0.20.6";
+          # reason for vendoring: symbol not found at runtime if linked to .so
           # override = pkgs.libgee;
         };
         libnice = {
@@ -223,6 +170,7 @@
             sha256 = "sha256-TDgJ63ZuRnxYFioxw07/ryyRpbqgt4+X4IqukHTX2cM=";
           };
           version = "0.1.19.1";
+          # reason for vendoring: frida-specific features
           # override = pkgs.libnice;
         };
         openssl = {
@@ -231,6 +179,7 @@
             sha256 = "sha256-uTOlK3wYHzg7MkwXzEI7K/piXJjbTwrAL5QGrq/ohjY=";
           };
           version = "3.0.7";
+          # reason for vendoring: symbol not found at runtime if linked to .so
           # override = pkgs.openssl;
         };
         glib-networking = {
@@ -239,6 +188,7 @@
             sha256 = "sha256-NN9bvX2syB6gwLQuEitR+T8h582j/YbbwB+Q7tJE2U4=";
           };
           version = "2.74.0";
+          # reason for vendoring: *has* to be linked statically, has frida-specific features, uses custom build config
           # override = pkgs.glib-networking;
         };
       };
