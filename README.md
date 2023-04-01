@@ -28,9 +28,8 @@ of disk space! (relatively speaking)
 - a: you can because the symbols aren't exported from the .so (well at
   least i hope so). worst case you can `dlopen` it
 - q: why not dynamic?
-- a: there are dynamic builds, it's just that frida-python doesn't see
-  the path to the .so (probably possible to patch) so i statically
-  linked it instead
+- a: there are dynamic builds for frida-gum, but not frida-core since it
+  can't be built dynamically due to... a bug? whatever
 - q: will you upstream this to nixpkgs?
 - a: this is 0bsd so feel free to do it! i don't want to deal with this
   vendored mess

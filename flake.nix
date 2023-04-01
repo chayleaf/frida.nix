@@ -208,15 +208,19 @@
       };
       frida-core-static = pkgs.callPackage ./pkgs/frida-core.nix {
         inherit srcs versions overrides;
+        # has to be frida-gumjs-static
+        # otherwise it segfaults with free(): invalid pointer
+        # (presumably due to conflicting allocator impls)
         frida-gumjs = frida-gumjs-static.override {
           dontCombineDeps = true;
         };
         enableStatic = true;
       };
-      frida-core = frida-core-static.override {
+      # doesn't work (because .so files aren't being built for whatever reason)
+      /*frida-core = frida-core-static.override {
         frida-gumjs = frida-gumjs-static;
         enableStatic = false;
-      };
+      };*/
       frida-gum-static = pkgs.callPackage ./pkgs/frida-gum.nix {
         inherit srcs versions overrides;
         enableStatic = true;

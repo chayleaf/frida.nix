@@ -19,6 +19,7 @@
 , glib
 , flex
 , bison
+, autoPatchelfHook
 , enableStatic ? true
 
 # vendored but works without vendoring
@@ -40,7 +41,7 @@ let
     outputs = [ "out" ];
     version = versions.vala;
     src = srcs.vala;
-    nativeBuildInputs = [ meson ninja vala pkg-config flex bison ];
+    nativeBuildInputs = [ meson ninja vala pkg-config flex bison autoPatchelfHook ];
     buildInputs = [ glib ]; # frida's glib doesn't work (for whatever reason)
     postPatch = old.postPatch + ''
       touch ChangeLog
@@ -54,9 +55,6 @@ let
   };
   frida-libgee = build {
     pname = "libgee";
-    env = {
-      LD_LIBRARY_PATH = "${frida-vala}/lib/vala-0.58";
-    };
     nativeBuildInputs = [ pkg-config frida-vala which ];
     mesonFlags = [ "-Ddisable-internal-asserts=true" "-Ddisable-introspection=true" ];
     buildInputs = [ frida-gumjs.glib ];
@@ -87,9 +85,6 @@ let
     ];
   };
   self = build {
-    env = {
-      LD_LIBRARY_PATH = "${frida-vala}/lib/vala-0.58";
-    };
     pname = "frida-core";
     preConfigure = ''
       patchShebangs --host src

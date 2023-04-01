@@ -170,7 +170,7 @@ let
   deps = [ frida-glib frida-capstone frida-libffi lzma libunwind libelf frida-libdwarf ]
     ++ (lib.optionals enableJsBindings [ frida-quickjs frida-v8 json-glib frida-tinycc sqlite frida-libsoup ]);
 in build (
-  (if dontCombineDeps && enableStatic then {
+  (if !dontCombineDeps || enableStatic then {
     propagatedBuildInputs = deps;
   } else {
     buildInputs = deps;
