@@ -1,21 +1,23 @@
 { lib
 , stdenv
+, fetchurl
+, substituteAll
 , srcs
 , overrides
 , versions
 , meson
 , pkg-config
 , ninja
+, gettext
 , enableJsBindings ? false
 , enableCppBindings ? false
 , enableObjcBridge ? false
 , enableSwiftBridge ? false
 , enableJavaBridge ? false
 , python3
-, which
+, nodejs_18
 , callPackage
 
-, gettext
 , glib # only for binaries
 
 , enableStatic ? true
@@ -36,32 +38,44 @@ let
   commonFlags = lib.optionals enableStatic ["--default-library=static"];
   propagate = enableStatic;
   build = attrs@{ pname, mesonFlags ? [], nativeBuildInputs ? [], buildInputs ? [], propagatedBuildInputs ? [], forceBuildInputs ? false, ... }:
-    if overrides?${pname} then overrides.${pname} else stdenv.mkDerivation ({
+    overrides.${pname} or (stdenv.mkDerivation ({
       version = versions.${pname};
       src = srcs.${pname};
     } // attrs // {
       mesonFlags = commonFlags ++ mesonFlags;
       nativeBuildInputs = [ meson ninja ] ++ nativeBuildInputs;
-    } // (if propagate && !forceBuildInputs then { propagatedBuildInputs = buildInputs ++ propagatedBuildInputs; buildInputs = []; } else {}));
+      hardeningDisable = [
+        "bindnow"
+        "format"
+        "fortify"
+        "fortify3"
+        "pic"
+        "relro"
+        "stackprotector"
+        "strictoverflow"
+        "zerocallusedregs"
+     ];
+    } // (if propagate && !forceBuildInputs then { propagatedBuildInputs = buildInputs ++ propagatedBuildInputs; buildInputs = []; } else {})));
   frida-glib = build {
     pname = "glib";
     preConfigure = ''
       patchShebangs --host tools
-      sed -i "s%/usr/bin/env python3%$(which python3)%g" tools/*.py
+      sed -i "s%/usr/bin/env python3%$(command -v python3)%g" tools/*.py
       sed -i "s%.*Werror=unused-result.*%%g" meson.build
     '';
-    nativeBuildInputs = [ pkg-config which python3 ];
+    nativeBuildInputs = [ pkg-config python3 gettext python3.pkgs.distutils ];
     mesonFlags = [
-      "-Dprintf=internal"
+      # "-Dprintf=internal"
       "-Dcocoa=disabled"
       "-Dselinux=disabled"
       "-Dxattr=false"
       "-Dlibmount=disabled"
       "-Dtests=false"
-      "-Dnls=disabled"
-      "-Dglib_debug=disabled"
-      "-Dglib_assert=false"
-      "-Dglib_checks=false"
+      "--force-fallback-for=pcre"
+      # "-Dnls=disabled"
+      # "-Dglib_debug=disabled"
+      # "-Dglib_assert=false"
+      # "-Dglib_checks=false"
       # implicit options
       "-Diconv=libc" # might have to be external on darwin, don't have a mac to test
       "-Dlibelf=disabled"
@@ -71,17 +85,11 @@ let
   frida-capstone = build {
     pname = "capstone";
     mesonFlags = [
-      "-Dprofile=full"
-      "-Dcli=disabled"
-      "-Darchs=${
-        # code adapted from: https://github.com/frida/frida/blob/9cfa93e552870237b8a3b57a2315321af4c10a4a/releng/deps.mk#L484
-        # all arches: https://github.com/frida/capstone/blob/22d317042ee4d251280d2960f5cf294433977db4/meson_options.txt#L15
-        if stdenv.targetPlatform.isS390x then "sysz"
-        else if stdenv.targetPlatform.isx86_64 then "x86"
-        else if stdenv.targetPlatform.isx86 then "x86"
-        else stdenv.targetPlatform.linuxArch
-      }"
+      # "-Dprofile=full"
+      "-Darchs=all"
+      "-Duse_arch_registration=true"
       "-Dx86_att_disable=true"
+      "-Dcli=disabled"
     ];
   };
   frida-libffi = build {
@@ -94,20 +102,20 @@ let
   };
   frida-brotli = build {
     pname = "brotli";
+    # WHY?
     postUnpack = ''
-      cp ${builtins.fetchurl {
-        url = "https://raw.githubusercontent.com/frida/brotli/9f51b6b95599466f46678381492834cdbde018f7/meson.build";
-        sha256 = "023d7w6dwrzdgksmhchb0qb3xhfzbhqh792siz2i3yab4im32c5r";
+      cp ${fetchurl {
+        url = "https://raw.githubusercontent.com/frida/brotli/01d9e2922ca878965ebcd71ee8965d2a7aadb47a/meson.build";
+        hash = "sha256-+Kaiyxqx5W/6PFoDVzhAJ3qPNOkThV4Q2zu3iLoG0+Q=";
       }} source/meson.build
-      ls -la source
     '';
   };
   frida-libsoup = build {
     pname = "libsoup";
-    nativeBuildInputs = [ pkg-config which python3 glib ];
+    nativeBuildInputs = [ pkg-config python3 glib ];
     preConfigure = ''
       patchShebangs --host libsoup
-      sed -i "s%/usr/bin/env python3%$(which python3)%g" libsoup/*.py
+      sed -i "s%/usr/bin/env python3%$(command -v python3)%g" libsoup/*.py
     '';
     mesonFlags = [
       "-Dgssapi=disabled"
@@ -129,10 +137,10 @@ let
   };
   frida-libdwarf = build {
     pname = "libdwarf";
-    nativeBuildInputs = [ python3 which pkg-config ];
+    nativeBuildInputs = [ python3 pkg-config ];
     preConfigure = ''
       patchShebangs --host scripts
-      sed -i "s%/usr/bin/env python3%$(which python3)%g" scripts/*.py
+      sed -i "s%/usr/bin/env python3%$(command -v python3)%g" scripts/*.py
     '';
     buildInputs = [ libelf ];
   };
@@ -148,8 +156,8 @@ let
     mesonFlags = commonFlags ++ [
       "-Ddebug=false"
       "-Dembedder_string=-frida"
-      "-Dpointer_compression=disabled"
       "-Dsnapshot_compression=disabled"
+      "-Dpointer_compression=disabled"
       "-Dshared_ro_heap=disabled"
       "-Dcppgc_caged_heap=disabled"
       # implicit flags
@@ -182,22 +190,24 @@ in build (
   preConfigure = ''
     patchShebangs --host bindings
     ${if enableJsBindings then ''
-    sed -i "s%/usr/bin/env python3%$(which python3)%g" bindings/gumjs/*.py
+    sed -i "s%/usr/bin/env python3%$(command -v python3)%g" bindings/gumjs/*.py
     '' else ""}
   '';
-  preBuild = let runtime = (callPackage ./gumjs-runtime {}).package; in ''
-    mkdir -p bindings/gumjs
-    cp ${runtime}/lib/node_modules/gumjs-runtime/*.json bindings/gumjs
-    cp -r ${runtime}/lib/node_modules/gumjs-runtime/node_modules bindings/gumjs/node_modules
-  '';
+  patches = lib.optionals enableJsBindings [
+    (let runtime = (callPackage ./gumjs-runtime { }).package; in substituteAll {
+      src = ./gum_deps.patch;
+      gumjs_runtime = "${runtime}/lib/node_modules/gumjs-runtime";
+    })
+  ];
   # some binary from glib is required for whatever reason
   nativeBuildInputs = [ pkg-config glib ]
-    ++ (lib.optionals enableJsBindings [ python3 which ]);
+    ++ (lib.optionals enableJsBindings [ nodejs_18 python3 ]);
   passthru = {
     glib = frida-glib;
     capstone = frida-capstone;
     libsoup = frida-libsoup;
     brotli = frida-brotli;
+    nghttp2 = frida-nghttp2;
   };
   mesonFlags = [
     "-Dgumjs=${if enableJsBindings then "enabled" else "disabled"}"

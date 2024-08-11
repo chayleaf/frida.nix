@@ -1,0 +1,26 @@
+diff --git a/bindings/gumjs/generate-runtime.py b/bindings/gumjs/generate-runtime.py
+index 679cad5..917b9e4 100644
+--- a/bindings/gumjs/generate-runtime.py
++++ b/bindings/gumjs/generate-runtime.py
+@@ -44,18 +44,9 @@ def generate_runtime(output_dir, priv_dir, input_dir, gum_dir, capstone_incdir,
+ 
+         (priv_dir / "tsconfig.json").write_text("{ \"files\": [], \"compilerOptions\": { \"typeRoots\": [] } }", encoding="utf-8")
+ 
+-        subprocess.run([npm, "init", "-y"],
+-                       capture_output=True,
+-                       cwd=priv_dir,
+-                       check=True)
+-        subprocess.run([npm, "install"] + [f"{name}@{version_spec}" for name, version_spec in RELAXED_DEPS.items()],
+-                       capture_output=True,
+-                       cwd=priv_dir,
+-                       check=True)
+-        subprocess.run([npm, "install", "-E"] + [f"{name}@{version_spec}" for name, version_spec in EXACT_DEPS.items()],
+-                       capture_output=True,
+-                       cwd=priv_dir,
+-                       check=True)
++        shutil.copy2("@gumjs_runtime@/package.json", priv_dir / "package.json")
++        shutil.copy2("@gumjs_runtime@/package-lock.json", priv_dir / "package-lock.json")
++        shutil.copytree("@gumjs_runtime@/node_modules", priv_dir / "node_modules", symlinks=True)
+ 
+     runtime_reldir = Path("runtime")
+     runtime_srcdir = input_dir / runtime_reldir
